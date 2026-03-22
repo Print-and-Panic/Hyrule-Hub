@@ -1,3 +1,5 @@
+[![Tests](https://github.com/Print-and-Panic/Hyrule-Hub/actions/workflows/test.yml/badge.svg)](https://github.com/Print-and-Panic/Hyrule-Hub/actions/workflows/test.yml)
+
 # Hyrule-Hub 🗡️
 
 A zero-configuration MQTT router and web overlay for Ocarina of Time Randomizer Multiworld. 
