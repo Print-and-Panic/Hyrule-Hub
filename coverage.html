@@ -1,0 +1,1623 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>emulator: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/Print-and-Panic/Hyrule-Hub/internal/emulator/mock.go (0.0%)</option>
+				
+				<option value="file1">github.com/Print-and-Panic/Hyrule-Hub/internal/emulator/retroarch/retroarch.go (0.0%)</option>
+				
+				<option value="file2">github.com/Print-and-Panic/Hyrule-Hub/internal/engine/engine.go (7.6%)</option>
+				
+				<option value="file3">github.com/Print-and-Panic/Hyrule-Hub/internal/mqtt/mock_mqtt.go (0.0%)</option>
+				
+				<option value="file4">github.com/Print-and-Panic/Hyrule-Hub/internal/mqtt/mqtt.go (0.0%)</option>
+				
+				<option value="file5">github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer/coop_context.go (0.0%)</option>
+				
+				<option value="file6">github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer/items.go (0.0%)</option>
+				
+				<option value="file7">github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer/items_list.go (0.0%)</option>
+				
+				<option value="file8">github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer/oot_characters.go (0.0%)</option>
+				
+				<option value="file9">github.com/Print-and-Panic/Hyrule-Hub/internal/server/server.go (0.0%)</option>
+				
+				<option value="file10">github.com/Print-and-Panic/Hyrule-Hub/main.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package emulator
+
+import (
+        "encoding/binary"
+        "sync"
+
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/emulator/retroarch"
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer"
+)
+
+// MockEmulator simulates the RetroArch memory space natively in Go.
+type MockEmulator struct {
+        mu  sync.RWMutex
+        ram map[uint32]byte
+}
+
+func NewMockEmulator() *MockEmulator <span class="cov0" title="0">{
+        return &amp;MockEmulator{
+                ram: make(map[uint32]byte),
+        }
+}</span>
+
+func (m *MockEmulator) Connect() error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+func (m *MockEmulator) Disconnect() error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+func (m *MockEmulator) ReadMemory(address uint32, size uint32) ([]byte, error) <span class="cov0" title="0">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        result := make([]byte, size)
+        for i := uint32(0); i &lt; size; i++ </span><span class="cov0" title="0">{
+                result[i] = m.ram[address+i]
+        }</span>
+        <span class="cov0" title="0">return result, nil</span>
+}
+
+func (m *MockEmulator) WriteMemory(address uint32, data []byte) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        for i, b := range data </span><span class="cov0" title="0">{
+                m.ram[address+uint32(i)] = b
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (m *MockEmulator) ReadCoopContext() (*randomizer.CoopContext, error) <span class="cov0" title="0">{
+        return &amp;randomizer.CoopContext{PlayerID: 1}, nil
+}</span>
+
+func (m *MockEmulator) ProcessOutgoingItem(publishFunc func(randomizer.OutgoingItem) error) error <span class="cov0" title="0">{
+        // Read the outgoing item from mock RAM
+        itemBytes, _ := m.ReadMemory(retroarch.OutgoingItemOffset, 2)
+        playerBytes, _ := m.ReadMemory(retroarch.OutgoingPlayerOffset, 2)
+        keyBytes, _ := m.ReadMemory(retroarch.OutgoingKeyOffset, 8)
+
+        item := randomizer.OutgoingItem{
+                Item:        randomizer.OotItem(binary.BigEndian.Uint16(itemBytes)),
+                World:       binary.BigEndian.Uint16(playerBytes),
+                OutgoingKey: binary.BigEndian.Uint64(keyBytes),
+        }
+
+        if item.OutgoingKey == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">if err := publishFunc(item); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Clear it
+        <span class="cov0" title="0">m.WriteMemory(retroarch.OutgoingItemOffset, make([]byte, 2))
+        m.WriteMemory(retroarch.OutgoingKeyOffset, make([]byte, 8))
+        return nil</span>
+}
+
+func (m *MockEmulator) WriteIncomingItem(item randomizer.IncomingItem) error <span class="cov0" title="0">{
+        // Simple mock write
+        buf := make([]byte, 2)
+        binary.BigEndian.PutUint16(buf, item.World)
+        m.WriteMemory(retroarch.IncomingPlayerOffset, buf)
+
+        binary.BigEndian.PutUint16(buf, uint16(item.Item))
+        m.WriteMemory(retroarch.IncomingItemOffset, buf)
+        return nil
+}</span>
+
+func (m *MockEmulator) WritePlayerNames(names map[uint8]string) error <span class="cov0" title="0">{
+        return nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package retroarch
+
+import (
+        "encoding/binary"
+        "fmt"
+        "log"
+        "net"
+        "strconv"
+        "strings"
+        "sync"
+        "time"
+
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer"
+)
+
+const (
+        coopContextAddress = 0x8040_0000
+        coopContextSize    = 0xc24
+)
+
+type RetroArch struct {
+        connectionLock    sync.Mutex
+        transactionLock   sync.Mutex
+        isConnected       bool
+        conn              *net.UDPConn
+        coopContextOffset uint32
+}
+
+func (r *RetroArch) Connect() error <span class="cov0" title="0">{
+        if r.isConnected </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">serverAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:55355")
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">conn, err := net.DialUDP("udp", nil, serverAddr)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">r.conn = conn
+
+        c, err := r.ReadMemory(coopContextAddress, 4)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read coop context start: %w", err)
+        }</span>
+
+        // Heuristic: N64 pointers usually start with 0x80.
+        // We try reading it directly first, then try unswapping.
+        <span class="cov0" title="0">ptrDirect := binary.BigEndian.Uint32(c)
+        ptrSwapped := binary.BigEndian.Uint32(unSwapBytes(append([]byte{}, c...))) // Don't modify c yet
+
+        if (ptrDirect &amp; 0xFF000000) == 0x80000000 </span><span class="cov0" title="0">{
+                r.coopContextOffset = ptrDirect
+                log.Printf("Co-op context pointer read directly: %x\n", r.coopContextOffset)
+        }</span> else<span class="cov0" title="0"> if (ptrSwapped &amp; 0xFF000000) == 0x80000000 </span><span class="cov0" title="0">{
+                r.coopContextOffset = ptrSwapped
+                log.Printf("Co-op context pointer read after unswap: %x\n", r.coopContextOffset)
+        }</span> else<span class="cov0" title="0"> {
+                // Fallback to swapped if neither looks like a valid pointer, but log it.
+                r.coopContextOffset = ptrSwapped
+                log.Printf("Warning: Co-op context pointer doesn't look valid: direct=%x, swapped=%x. Using swapped.\n", ptrDirect, ptrSwapped)
+        }</span>
+
+        <span class="cov0" title="0">if r.coopContextOffset == 0 </span><span class="cov0" title="0">{
+                return fmt.Errorf("co-op context pointer is null (is the randomizer context initialized?)")
+        }</span>
+
+        <span class="cov0" title="0">r.isConnected = true
+        return nil</span>
+}
+
+func (r *RetroArch) Disconnect() error <span class="cov0" title="0">{
+
+        if r.conn != nil </span><span class="cov0" title="0">{
+                r.conn.Close()
+        }</span>
+        <span class="cov0" title="0">r.isConnected = false
+        return nil</span>
+}
+
+func (r *RetroArch) ReadCoopContext() (*randomizer.CoopContext, error) <span class="cov0" title="0">{
+        bytes, err := r.ReadMemory(r.coopContextOffset, coopContextSize)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read coop context: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">bytes = unSwapBytes(bytes)
+        version := binary.BigEndian.Uint32(bytes[VersionOffset : VersionOffset+4])
+        log.Printf("Co-op Context Version: %d\n", version)
+
+        ctx := &amp;randomizer.CoopContext{
+                Version:                  version,
+                PlayerID:                 bytes[PlayerIDOffset],
+                PlayerNameID:             bytes[PlayerNameIDOffset],
+                IncomingPlayer:           binary.BigEndian.Uint16(bytes[IncomingPlayerOffset : IncomingPlayerOffset+2]),
+                IncomingItem:             randomizer.OotItem(binary.BigEndian.Uint16(bytes[IncomingItemOffset : IncomingItemOffset+2])),
+                MWSendOwnItems:           bytes[MWSendOwnItemsOffset],
+                MWProgressiveItemsEnable: bytes[MWProgressiveItemsEnableOffset],
+                OutgoingItem:             randomizer.OotItem(binary.BigEndian.Uint16(bytes[OutgoingItemOffset : OutgoingItemOffset+2])),
+                OutgoingPlayer:           binary.BigEndian.Uint16(bytes[OutgoingPlayerOffset : OutgoingPlayerOffset+2]),
+
+                CFGFileSelectHash: randomizer.HashIconFromByteArray(bytes[CfgFileSelectHashOffset : CfgFileSelectHashOffset+5]),
+                OutgoingKey:       binary.BigEndian.Uint64(bytes[OutgoingKeyOffset : OutgoingKeyOffset+8]),
+        }
+
+        for i := range ctx.PlayerNames </span><span class="cov0" title="0">{
+                nameBytes := bytes[PlayerNamesOffset+i*8 : PlayerNamesOffset+i*8+8]
+                ctx.PlayerNames[i] = string(nameBytes)
+        }</span>
+
+        <span class="cov0" title="0">return ctx, nil</span>
+}
+
+func (r *RetroArch) ProcessOutgoingItem(publishFunc func(randomizer.OutgoingItem) error) error <span class="cov0" title="0">{
+        r.transactionLock.Lock()
+        defer r.transactionLock.Unlock()
+
+        bytes, err := r.ReadMemory(r.coopContextOffset+OutgoingItemOffset, 4)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read outgoing item: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">bytes = unSwapBytes(bytes)
+
+        out := randomizer.OutgoingItem{
+                World: binary.BigEndian.Uint16(bytes[2:4]),
+                Item:  randomizer.OotItem(binary.BigEndian.Uint16(bytes[0:2])),
+        }
+
+        outgoingKeyBytes, err := r.ReadMemory(r.coopContextOffset+OutgoingKeyOffset, 8)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read outgoing key: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">outgoingKeyBytes = unSwapBytes(outgoingKeyBytes)
+        out.OutgoingKey = binary.BigEndian.Uint64(outgoingKeyBytes)
+
+        if out.OutgoingKey == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">log.Printf("Found outgoing item: %s to player %d (Key: %d)\n", out.Item, out.World, out.OutgoingKey)
+
+        // Release the lock during the network operation!
+        r.transactionLock.Unlock()
+        err = publishFunc(out)
+        r.transactionLock.Lock()
+
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("network publish failed: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">log.Printf("Successfully published item %d, clearing from RAM...\n", out.OutgoingKey)
+        if err := r.ClearOutgoingItem(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("published successfully, but failed to clear RAM: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *RetroArch) WriteIncomingItem(item randomizer.IncomingItem) error <span class="cov0" title="0">{
+        waitTime := time.Second / 30 // 30 FPS polling
+        timeout := time.After(5 * time.Second)
+
+        var loadBytes []byte
+
+SemaphoreCheck:
+        for </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-timeout:<span class="cov0" title="0">
+                        return fmt.Errorf("timeout waiting for semaphore to clear (last seen: %x)", loadBytes)</span>
+                default:<span class="cov0" title="0">
+                        r.transactionLock.Lock()
+
+                        bytes, err := r.ReadMemory(r.coopContextOffset+PlayerIDOffset, 8)
+                        if err != nil </span><span class="cov0" title="0">{
+                                r.transactionLock.Unlock()
+                                return fmt.Errorf("failed to read semaphore block: %w", err)
+                        }</span>
+
+                        <span class="cov0" title="0">loadBytes = unSwapBytes(bytes)
+
+                        currIncomingPlayer := binary.BigEndian.Uint16(loadBytes[2:4])
+                        currIncomingItem := binary.BigEndian.Uint16(loadBytes[4:6])
+
+                        if currIncomingPlayer == 0 &amp;&amp; currIncomingItem == 0 </span><span class="cov0" title="0">{
+                                // Semaphore is empty! We KEEP the lock here so no other thread
+                                // can claim it before we inject our item, and break the loop.
+                                break SemaphoreCheck</span>
+                        }
+
+                        // Semaphore is full. Unlock so other processes can run, then wait.
+                        <span class="cov0" title="0">r.transactionLock.Unlock()
+                        log.Printf("Semaphore is full (P:%d I:%d), waiting...\n", currIncomingPlayer, currIncomingItem)
+                        time.Sleep(waitTime)</span>
+                }
+        }
+
+        // AT THIS POINT: We still hold the transactionLock from the successful iteration.
+        <span class="cov0" title="0">defer r.transactionLock.Unlock()
+
+        binary.BigEndian.PutUint16(loadBytes[2:4], item.World)
+        binary.BigEndian.PutUint16(loadBytes[4:6], uint16(item.Item))
+        writeBytes := unSwapBytes(loadBytes)
+
+        log.Printf("Injecting item %s from world %d\n", item.Item, item.World)
+        if err := r.WriteMemory(r.coopContextOffset+PlayerIDOffset, writeBytes); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write incoming item: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *RetroArch) ClearOutgoingItem() error <span class="cov0" title="0">{
+        bytes := make([]byte, 4)
+
+        writeBytes := unSwapBytes(bytes)
+
+        if err := r.WriteMemory(r.coopContextOffset+OutgoingItemOffset, writeBytes); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to clear outgoing item: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">outgoingKeyBytes := make([]byte, 8)
+        writeBytes = unSwapBytes(outgoingKeyBytes)
+
+        if err := r.WriteMemory(r.coopContextOffset+OutgoingKeyOffset, writeBytes); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to clear outgoing key: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *RetroArch) ToPhysical(vAddr uint32) uint32 <span class="cov0" title="0">{
+        return vAddr &amp; 0x00FFFFFF
+}</span>
+
+func (r *RetroArch) ReadMemory(vAddr uint32, size uint32) ([]byte, error) <span class="cov0" title="0">{
+        if size%4 != 0 </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("read size must be a multiple of 4, got %d", size)
+        }</span>
+
+        <span class="cov0" title="0">phys := r.ToPhysical(vAddr)
+        cmd := fmt.Sprintf("READ_CORE_MEMORY %x %d\n", phys, size)
+
+        r.connectionLock.Lock()
+        defer r.connectionLock.Unlock()
+
+        // Clear any pending data in the UDP buffer before sending a new command
+        r.conn.SetReadDeadline(time.Now().Add(1 * time.Millisecond))
+        discardBuf := make([]byte, 65535)
+        for </span><span class="cov0" title="0">{
+                _, err := r.conn.Read(discardBuf)
+                if err != nil </span><span class="cov0" title="0">{
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">if _, err := r.conn.Write([]byte(cmd)); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to write command: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">err := r.conn.SetReadDeadline(time.Now().Add(1000 * time.Millisecond))
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to set read deadline: %w", err)
+        }</span>
+
+        // Read the entire UDP response packet
+        <span class="cov0" title="0">respBuf := make([]byte, 65535)
+        n, err := r.conn.Read(respBuf)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read response: %w", err)
+        }</span>
+        <span class="cov0" title="0">response := string(respBuf[:n])
+
+        // Parse the RetroArch ASCII format
+        parts := strings.Fields(strings.TrimSpace(response))
+        if len(parts) &lt; 3 || parts[0] != "READ_CORE_MEMORY" </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid response format. Received: %s", response)
+        }</span>
+
+        <span class="cov0" title="0">if parts[2] == "-1" </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("RetroArch returned -1: invalid physical address %x", phys)
+        }</span>
+
+        <span class="cov0" title="0">hexStrings := parts[2:]
+        if uint32(len(hexStrings)) &lt; size </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("expected %d bytes, got %d. Response: %s", size, len(hexStrings), response)
+        }</span>
+
+        // Convert hex strings to a raw byte slice
+        <span class="cov0" title="0">out := make([]byte, size)
+        for i := range size </span><span class="cov0" title="0">{
+                val, err := strconv.ParseUint(hexStrings[i], 16, 8)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("failed to parse byte at index %d (%s): %w", i, hexStrings[i], err)
+                }</span>
+                <span class="cov0" title="0">out[i] = byte(val)</span>
+        }
+
+        <span class="cov0" title="0">return out, nil</span>
+}
+
+func (r *RetroArch) WriteMemory(vAddr uint32, data []byte) error <span class="cov0" title="0">{
+        hexStr := make([]string, len(data))
+        for i, b := range data </span><span class="cov0" title="0">{
+                hexStr[i] = fmt.Sprintf("%02x", b)
+        }</span>
+
+        <span class="cov0" title="0">address := r.ToPhysical(vAddr)
+        cmd := fmt.Sprintf("WRITE_CORE_MEMORY %08x %s\n", address, strings.Join(hexStr, " "))
+
+        r.connectionLock.Lock()
+        defer r.connectionLock.Unlock()
+
+        // Discard stale data
+        r.conn.SetReadDeadline(time.Now().Add(1 * time.Millisecond))
+        discardBuf := make([]byte, 65535)
+        for </span><span class="cov0" title="0">{
+                _, err := r.conn.Read(discardBuf)
+                if err != nil </span><span class="cov0" title="0">{
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">_, err := r.conn.Write([]byte(cmd))
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write memory: %w", err)
+        }</span>
+
+        // UDP write responses should be fast
+        <span class="cov0" title="0">r.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+        respBuf := make([]byte, 65535)
+        _, err = r.conn.Read(respBuf)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read write confirmation: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (r *RetroArch) WritePlayerNames(names map[uint8]string) error <span class="cov0" title="0">{
+        // Create the full 2048-byte block (256 players * 8 bytes)
+        // We fill the entire block with 0xDF (Spaces) so empty slots are blank
+        writeBytes := make([]byte, 2048)
+        for i := range writeBytes </span><span class="cov0" title="0">{
+                writeBytes[i] = 0xDF
+        }</span>
+
+        <span class="cov0" title="0">for playerID, name := range names </span><span class="cov0" title="0">{
+                encoded := randomizer.EncodeOoTName(name)
+
+                // Player ID 1 goes to byte offset 8. Player ID 2 goes to 16.
+                startIndex := int(playerID) * 8
+                copy(writeBytes[startIndex:startIndex+8], encoded[:])
+        }</span>
+
+        <span class="cov0" title="0">writeBytes = unSwapBytes(writeBytes)
+
+        // Send the massive block to RetroArch
+        targetAddr := r.coopContextOffset + PlayerNamesOffset
+        return r.WriteMemory(targetAddr, writeBytes)</span>
+}
+
+// ------------------ Helper Functions ------------------
+
+// unSwapBytes reverses the byte order of a slice
+func unSwapBytes(data []byte) []byte <span class="cov0" title="0">{
+        // Because Mupen stores 32-bit words backwards on x86, we iterate through
+        // our byte slice in chunks of 4 and swap the outer and inner bytes.
+        for i := 0; i &lt; len(data); i += 4 </span><span class="cov0" title="0">{
+                data[i], data[i+1], data[i+2], data[i+3] = data[i+3], data[i+2], data[i+1], data[i]
+        }</span>
+        <span class="cov0" title="0">return data</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package engine
+
+import (
+        "context"
+        "embed"
+        "encoding/json"
+        "log"
+        "maps"
+        "os"
+        "sync"
+        "time"
+
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer"
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/server"
+)
+
+type OoTEmulator interface {
+        // Connect establishes a connection to the emulator.
+        Connect() error
+        Disconnect() error
+        // Read the cooperative context from the emulator
+        ReadCoopContext() (*randomizer.CoopContext, error)
+        // Process outgoing item from the emulator
+        ProcessOutgoingItem(publishFunc func(randomizer.OutgoingItem) error) error
+        // Write the incoming item to the emulator
+        WriteIncomingItem(randomizer.IncomingItem) error
+        //Write Names
+        WritePlayerNames(names map[uint8]string) error
+}
+
+type MWServer interface {
+        // Lifecycle
+        Connect() error
+        Disconnect() error
+
+        // Outgoing Actions
+        SendItem(item randomizer.OutgoingItem) error
+        BroadcastName(playerID uint8, name string) error
+
+        // Incoming Streams
+        IncomingItems() &lt;-chan randomizer.IncomingItem
+        IncomingNames() &lt;-chan randomizer.PlayerName
+}
+
+type FrontendServer interface {
+        // Serve the frontend assets
+        Serve(embed.FS) (&lt;-chan server.ClientConfig, error)
+}
+
+type Engine struct {
+        emu           OoTEmulator
+        mw            MWServer
+        ui            FrontendServer
+        stateFilePath string
+
+        mu            sync.RWMutex
+        playerNames   map[uint8]string
+        outgoingItems map[uint64]randomizer.OutgoingItem
+        incomingItems map[uint64]randomizer.IncomingItem
+}
+
+type EngineStateSnapshot struct {
+        PlayerNames   map[uint8]string
+        OutgoingItems []randomizer.OutgoingItem
+        IncomingItems []randomizer.IncomingItem
+}
+
+func NewEngine(emu OoTEmulator, mw MWServer, ui FrontendServer, stateFilePath string) *Engine <span class="cov8" title="1">{
+        e := &amp;Engine{
+                emu:           emu,
+                mw:            mw,
+                ui:            ui,
+                stateFilePath: stateFilePath,
+                playerNames:   make(map[uint8]string),
+                outgoingItems: make(map[uint64]randomizer.OutgoingItem),
+                incomingItems: make(map[uint64]randomizer.IncomingItem),
+        }
+
+        e.loadState()
+        return e
+}</span>
+
+func (e *Engine) Start(ctx context.Context) error <span class="cov0" title="0">{
+        go e.handleIncomingItems(ctx)
+        go e.handleIncomingNames(ctx)
+
+        ticker := time.NewTicker(time.Second / 30)
+        defer ticker.Stop()
+
+        for </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        log.Println("Shutting down...")
+                        return nil</span>
+                case &lt;-ticker.C:<span class="cov0" title="0">
+                        err := e.emu.ProcessOutgoingItem(func(item randomizer.OutgoingItem) error </span><span class="cov0" title="0">{
+                                logItem(item)
+                                if item.OutgoingKey == 0 </span><span class="cov0" title="0">{
+                                        return nil
+                                }</span>
+
+                                // Safely check cache
+                                <span class="cov0" title="0">log.Printf("Checking cache for outgoing key: %d\n", item.OutgoingKey)
+                                e.mu.RLock()
+                                _, exists := e.outgoingItems[item.OutgoingKey]
+                                e.mu.RUnlock()
+
+                                if exists </span><span class="cov0" title="0">{
+                                        log.Printf("Item already processed: %d\n", item.OutgoingKey)
+                                        return nil // We already successfully processed this
+                                }</span>
+
+                                // SEND TO NETWORK FIRST. If this fails, we return the error and try again next tick.
+                                <span class="cov0" title="0">if err := e.mw.SendItem(item); err != nil </span><span class="cov0" title="0">{
+                                        log.Printf("Failed to send item to network: %v\n", err)
+                                        return err
+                                }</span>
+
+                                // NETWORK SUCCESS. Now lock, cache, and save.
+                                <span class="cov0" title="0">log.Printf("Network success, locking and caching item: %v\n", item)
+                                e.mu.Lock()
+                                defer e.mu.Unlock() // Ensure unlock happens even if save fails
+
+                                e.outgoingItems[item.OutgoingKey] = item
+                                return e.saveStateLocked()</span> // Call the internal locked version
+                        })
+
+                        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                                log.Printf("Warning: failed to process outgoing item: %v\n", err)
+                        }</span>
+                }
+        }
+}
+
+// --- WORKERS ---
+
+func (e *Engine) handleIncomingItems(ctx context.Context) <span class="cov0" title="0">{
+        // Sequential worker to maintain order without blocking the network receiver
+        workerChan := make(chan randomizer.IncomingItem, 256)
+        go func() </span><span class="cov0" title="0">{
+                for </span><span class="cov0" title="0">{
+                        select </span>{
+                        case &lt;-ctx.Done():<span class="cov0" title="0">
+                                return</span>
+                        case item := &lt;-workerChan:<span class="cov0" title="0">
+                                if err := e.emu.WriteIncomingItem(item); err != nil </span><span class="cov0" title="0">{
+                                        log.Printf("failed to write incoming item: %v\n", err)
+                                }</span>
+                        }
+                }
+        }()
+
+        <span class="cov0" title="0">for </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        log.Println("Shutting down incoming items handler...")
+                        return</span>
+                case item := &lt;-e.mw.IncomingItems():<span class="cov0" title="0">
+                        e.mu.Lock()
+                        e.incomingItems[item.Key] = item
+                        e.saveStateLocked() // Optional: save immediately when receiving an item
+                        e.mu.Unlock()
+
+                        // Queue it for the emulator worker
+                        select </span>{
+                        case workerChan &lt;- item:<span class="cov0" title="0"></span>
+                        default:<span class="cov0" title="0">
+                                log.Printf("Warning: Emulator worker queue is full, dropping item %d\n", item.Key)</span>
+                        }
+                }
+        }
+}
+
+func (e *Engine) handleIncomingNames(ctx context.Context) <span class="cov0" title="0">{
+        for </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        log.Println("Shutting down incoming names handler...")
+                        return</span>
+                case name := &lt;-e.mw.IncomingNames():<span class="cov0" title="0">
+                        e.mu.Lock()
+                        e.playerNames[name.PlayerID] = name.Name
+                        e.saveStateLocked()
+                        // Take a copy of the map to send to the emulator without holding the lock
+                        namesCopy := make(map[uint8]string)
+                        maps.Copy(namesCopy, e.playerNames)
+                        e.mu.Unlock()
+
+                        e.emu.WritePlayerNames(namesCopy)</span>
+                }
+        }
+}
+
+// --- STATE MANAGEMENT ---
+
+func (e *Engine) loadState() error <span class="cov8" title="1">{
+        data, err := os.ReadFile(e.stateFilePath)
+        if err != nil </span><span class="cov8" title="1">{
+                if os.IsNotExist(err) </span><span class="cov8" title="1">{
+                        return nil // Normal on first run
+                }</span>
+                <span class="cov0" title="0">return err</span>
+        }
+
+        <span class="cov0" title="0">var snapshot EngineStateSnapshot
+        if err := json.Unmarshal(data, &amp;snapshot); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">e.mu.Lock()
+        defer e.mu.Unlock()
+
+        for _, item := range snapshot.OutgoingItems </span><span class="cov0" title="0">{
+                e.outgoingItems[item.OutgoingKey] = item
+        }</span>
+        <span class="cov0" title="0">for _, item := range snapshot.IncomingItems </span><span class="cov0" title="0">{
+                e.incomingItems[item.Key] = item
+        }</span>
+        <span class="cov0" title="0">if snapshot.PlayerNames != nil </span><span class="cov0" title="0">{
+                e.playerNames = snapshot.PlayerNames
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (e *Engine) saveStateLocked() error <span class="cov0" title="0">{
+        var snapshot EngineStateSnapshot
+
+        for _, item := range e.outgoingItems </span><span class="cov0" title="0">{
+                snapshot.OutgoingItems = append(snapshot.OutgoingItems, item)
+        }</span>
+        <span class="cov0" title="0">for _, item := range e.incomingItems </span><span class="cov0" title="0">{
+                snapshot.IncomingItems = append(snapshot.IncomingItems, item)
+        }</span>
+        <span class="cov0" title="0">snapshot.PlayerNames = make(map[uint8]string)
+        maps.Copy(snapshot.PlayerNames, e.playerNames)
+
+        data, err := json.MarshalIndent(snapshot, "", "  ")
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">log.Printf("Saving state: %d outgoing, %d incoming items cached.\n",
+                len(e.outgoingItems), len(e.incomingItems))
+
+        return os.WriteFile(e.stateFilePath, data, 0644)</span>
+}
+
+func logItem(item randomizer.OutgoingItem) <span class="cov0" title="0">{
+        if item.OutgoingKey == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">log.Printf("Item: World=%d, Item=%d, OutgoingKey=%d\n", item.World, item.Item, item.OutgoingKey)</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package mqtt
+
+import (
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer"
+)
+
+type MockMQTT struct {
+        SentItems         chan randomizer.OutgoingItem
+        IncomingItemsChan chan randomizer.IncomingItem
+        IncomingNamesChan chan randomizer.PlayerName
+}
+
+func NewMockMQTT() *MockMQTT <span class="cov0" title="0">{
+        return &amp;MockMQTT{
+                SentItems:         make(chan randomizer.OutgoingItem, 100),
+                IncomingItemsChan: make(chan randomizer.IncomingItem, 100),
+                IncomingNamesChan: make(chan randomizer.PlayerName, 100),
+        }
+}</span>
+
+func (m *MockMQTT) Connect() error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+func (m *MockMQTT) Disconnect() error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+func (m *MockMQTT) SendItem(item randomizer.OutgoingItem) error <span class="cov0" title="0">{
+        m.SentItems &lt;- item
+        return nil
+}</span>
+
+func (m *MockMQTT) BroadcastName(playerID uint8, name string) error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+func (m *MockMQTT) IncomingItems() &lt;-chan randomizer.IncomingItem <span class="cov0" title="0">{
+        return m.IncomingItemsChan
+}</span>
+
+func (m *MockMQTT) IncomingNames() &lt;-chan randomizer.PlayerName <span class="cov0" title="0">{
+        return m.IncomingNamesChan
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package mqtt
+
+import (
+        "encoding/json"
+        "fmt"
+        "log"
+
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer"
+        mqtt "github.com/eclipse/paho.mqtt.golang"
+)
+
+type pahoClient struct {
+        client   mqtt.Client
+        roomHash string
+        playerID uint8
+
+        itemChan chan randomizer.IncomingItem
+        nameChan chan randomizer.PlayerName
+}
+
+// NewMQTTClient initializes the structs and channels but does not connect yet
+func NewMQTTClient(brokerURI, roomHash string, playerID uint8) *pahoClient <span class="cov0" title="0">{
+        opts := mqtt.NewClientOptions()
+        opts.AddBroker(brokerURI)
+        // Unique Client ID is critical for Persistent Sessions
+        opts.SetClientID(fmt.Sprintf("pnp-client-%s-%d", roomHash, playerID))
+        opts.SetCleanSession(false) // Remember our missed items if we disconnect!
+
+        return &amp;pahoClient{
+                roomHash: roomHash,
+                playerID: playerID,
+                itemChan: make(chan randomizer.IncomingItem, 100), // Buffer handles sudden item bursts
+                nameChan: make(chan randomizer.PlayerName, 32),
+                client:   mqtt.NewClient(opts),
+        }
+}</span>
+
+func (m *pahoClient) Connect() error <span class="cov0" title="0">{
+        if token := m.client.Connect(); token.Wait() &amp;&amp; token.Error() != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("MQTT connection failed: %w", token.Error())
+        }</span>
+
+        // Subscribe to OUR items ONLY
+        <span class="cov0" title="0">itemTopic := fmt.Sprintf("pnp/rooms/%s/players/%d/items", m.roomHash, m.playerID)
+        if token := m.client.Subscribe(itemTopic, 1, m.onIncomingItem); token.Wait() &amp;&amp; token.Error() != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to subscribe to items: %w", token.Error())
+        }</span>
+
+        // Subscribe to EVERYONE'S names using the '+' wildcard
+        <span class="cov0" title="0">nameTopic := fmt.Sprintf("pnp/rooms/%s/players/+/name", m.roomHash)
+        if token := m.client.Subscribe(nameTopic, 1, m.onIncomingName); token.Wait() &amp;&amp; token.Error() != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to subscribe to names: %w", token.Error())
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (m *pahoClient) Disconnect() error <span class="cov0" title="0">{
+        m.client.Disconnect(250) // Wait 250ms to finish inflight messages
+        return nil
+}</span>
+
+// --- PUBLISHERS ---
+
+func (m *pahoClient) SendItem(item randomizer.OutgoingItem) error <span class="cov0" title="0">{
+        // Route it to the target player's topic
+        topic := fmt.Sprintf("pnp/rooms/%s/players/%d/items", m.roomHash, item.World)
+
+        payload, err := json.Marshal(item)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal item: %w", err)
+        }</span>
+
+        // Publish with QoS 1 (At least once), Retained FALSE
+        <span class="cov0" title="0">token := m.client.Publish(topic, 1, false, payload)
+
+        // token.Wait() blocks until the broker physically ACKs the message.
+        token.Wait()
+        return token.Error()</span>
+}
+
+func (m *pahoClient) BroadcastName(playerID uint8, name string) error <span class="cov0" title="0">{
+        topic := fmt.Sprintf("pnp/rooms/%s/players/%d/name", m.roomHash, playerID)
+
+        update := randomizer.PlayerName{PlayerID: playerID, Name: name}
+        payload, err := json.Marshal(update)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Publish with QoS 1, Retained TRUE.
+        <span class="cov0" title="0">token := m.client.Publish(topic, 1, true, payload)
+        token.Wait()
+        return token.Error()</span>
+}
+
+// --- CALLBACKS ---
+
+func (m *pahoClient) onIncomingItem(client mqtt.Client, msg mqtt.Message) <span class="cov0" title="0">{
+        var item randomizer.IncomingItem
+        if err := json.Unmarshal(msg.Payload(), &amp;item); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Network error: failed to parse incoming item payload: %v", err)
+                return
+        }</span>
+        // Push into the buffered channel so the main thread can consume it
+        <span class="cov0" title="0">m.itemChan &lt;- item</span>
+}
+
+func (m *pahoClient) onIncomingName(client mqtt.Client, msg mqtt.Message) <span class="cov0" title="0">{
+        var update randomizer.PlayerName
+        if err := json.Unmarshal(msg.Payload(), &amp;update); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Network error: failed to parse name update: %v", err)
+                return
+        }</span>
+        <span class="cov0" title="0">m.nameChan &lt;- update</span>
+}
+
+// --- CHANNEL GETTERS ---
+
+func (m *pahoClient) IncomingItems() &lt;-chan randomizer.IncomingItem <span class="cov0" title="0">{
+        return m.itemChan
+}</span>
+
+func (m *pahoClient) IncomingNames() &lt;-chan randomizer.PlayerName <span class="cov0" title="0">{
+        return m.nameChan
+}</span>
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package randomizer
+
+type CoopContext struct {
+        Version                  uint32
+        PlayerID                 uint8
+        PlayerNameID             uint8
+        IncomingPlayer           uint16
+        IncomingItem             OotItem
+        MWSendOwnItems           uint8
+        MWProgressiveItemsEnable uint8
+        OutgoingItem             OotItem
+        OutgoingPlayer           uint16
+        PlayerNames              []string
+        CFGFileSelectHash        []HashIcon
+        MWProgressiveItemsState  [][]byte
+        OutgoingKey              uint64
+}
+
+type HashIcon byte
+
+func HashIconFromByteArray(bytes []byte) []HashIcon <span class="cov0" title="0">{
+        result := make([]HashIcon, len(bytes))
+        for i, b := range bytes </span><span class="cov0" title="0">{
+                result[i] = HashIcon(b)
+        }</span>
+        <span class="cov0" title="0">return result</span>
+}
+
+func (h HashIcon) String() string <span class="cov0" title="0">{
+        return hashIconMap[byte(h)]
+}</span>
+
+var hashIconMap map[byte]string
+
+func init() <span class="cov0" title="0">{
+        hashIconMap = map[byte]string{
+                0:  "Deku Stick",
+                1:  "Deku Nut",
+                2:  "Bow",
+                3:  "Slingshot",
+                4:  "Fairy Ocarina",
+                5:  "Bombchu",
+                6:  "Longshot",
+                7:  "Boomerang",
+                8:  "Lens of Truth",
+                9:  "Beans",
+                10: "Megaton Hammer",
+                11: "Bottled Fish",
+                12: "Bottled Milk",
+                13: "Mask of Truth",
+                14: "SOLD OUT",
+                15: "Cucco",
+                16: "Mushroom",
+                17: "Saw",
+                18: "Frog",
+                19: "Master Sword",
+                20: "Mirror Shield",
+                21: "Kokiri Tunic",
+                22: "Hover Boots",
+                23: "Silver Gauntlets",
+                24: "Gold Scale",
+                25: "Stone of Agony",
+                26: "Skull Token",
+                27: "Heart Container",
+                28: "Boss Key",
+                29: "Compass",
+                30: "Map",
+                31: "Big Magic",
+        }
+
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package randomizer
+
+import "fmt"
+
+type IncomingItem struct {
+        World uint16  `json:"world"`
+        Item  OotItem `json:"item"`
+        Key   uint64  `json:"key"`
+}
+
+type OutgoingItem struct {
+        World       uint16  `json:"world"`
+        Item        OotItem `json:"item"`
+        OutgoingKey uint64  `json:"outgoingKey"`
+}
+
+func (o OutgoingItem) String() string <span class="cov0" title="0">{
+        return fmt.Sprintf("World: %d, Item: %s, OutgoingKey: %d", o.World, o.Item, o.OutgoingKey)
+}</span>
+
+type OotItem uint16
+
+func (i OotItem) String() string <span class="cov0" title="0">{
+        return ItemNames[uint16(i)]
+}</span>
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package randomizer
+
+var ItemNames map[uint16]string
+
+func init() <span class="cov0" title="0">{
+        // Lovingly copied from https://github.com/OoTRandomizer/OoT-Randomizer
+        ItemNames = map[uint16]string{
+                // Items
+                0x0000: "GI_NONE",
+                0x0001: "GI_BOMBS_5",
+                0x0002: "GI_DEKU_NUTS_5",
+                0x0003: "GI_BOMBCHUS_10",
+                0x0004: "GI_BOW",
+                0x0005: "GI_SLINGSHOT",
+                0x0006: "GI_BOOMERANG",
+                0x0007: "GI_DEKU_STICKS_1",
+                0x0008: "GI_HOOKSHOT",
+                0x0009: "GI_LONGSHOT",
+                0x000A: "GI_LENS_OF_TRUTH",
+                0x000B: "GI_ZELDAS_LETTER",
+                0x000C: "GI_OCARINA_OF_TIME",
+                0x000D: "GI_HAMMER",
+                0x000E: "GI_COJIRO",
+                0x000F: "GI_BOTTLE_EMPTY",
+                0x0010: "GI_BOTTLE_POTION_RED",
+                0x0011: "GI_BOTTLE_POTION_GREEN",
+                0x0012: "GI_BOTTLE_POTION_BLUE",
+                0x0013: "GI_BOTTLE_FAIRY",
+                0x0014: "GI_BOTTLE_MILK_FULL",
+                0x0015: "GI_BOTTLE_RUTOS_LETTER",
+                0x0016: "GI_MAGIC_BEAN",
+                0x0017: "GI_MASK_SKULL",
+                0x0018: "GI_MASK_SPOOKY",
+                0x0019: "GI_CHICKEN",
+                0x001A: "GI_MASK_KEATON",
+                0x001B: "GI_MASK_BUNNY_HOOD",
+                0x001C: "GI_MASK_TRUTH",
+                0x001D: "GI_POCKET_EGG",
+                0x001E: "GI_POCKET_CUCCO",
+                0x001F: "GI_ODD_MUSHROOM",
+                0x0020: "GI_ODD_POTION",
+                0x0021: "GI_POACHERS_SAW",
+                0x0022: "GI_BROKEN_GORONS_SWORD",
+                0x0023: "GI_PRESCRIPTION",
+                0x0024: "GI_EYEBALL_FROG",
+                0x0025: "GI_EYE_DROPS",
+                0x0026: "GI_CLAIM_CHECK",
+                0x0027: "GI_SWORD_KOKIRI",
+                0x0028: "GI_SWORD_KNIFE",
+                0x0029: "GI_SHIELD_DEKU",
+                0x002A: "GI_SHIELD_HYLIAN",
+                0x002B: "GI_SHIELD_MIRROR",
+                0x002C: "GI_TUNIC_GORON",
+                0x002D: "GI_TUNIC_ZORA",
+                0x002E: "GI_BOOTS_IRON",
+                0x002F: "GI_BOOTS_HOVER",
+                0x0030: "GI_QUIVER_40",
+                0x0031: "GI_QUIVER_50",
+                0x0032: "GI_BOMB_BAG_20",
+                0x0033: "GI_BOMB_BAG_30",
+                0x0034: "GI_BOMB_BAG_40",
+                0x0035: "GI_SILVER_GAUNTLETS",
+                0x0036: "GI_GOLD_GAUNTLETS",
+                0x0037: "GI_SCALE_SILVER",
+                0x0038: "GI_SCALE_GOLDEN",
+                0x0039: "GI_STONE_OF_AGONY",
+                0x003A: "GI_GERUDOS_CARD",
+                0x003B: "GI_OCARINA_FAIRY",
+                0x003C: "GI_DEKU_SEEDS_5",
+                0x003D: "GI_HEART_CONTAINER",
+                0x003E: "GI_HEART_PIECE",
+                0x003F: "GI_BOSS_KEY",
+                0x0040: "GI_COMPASS",
+                0x0041: "GI_DUNGEON_MAP",
+                0x0042: "GI_SMALL_KEY",
+                0x0043: "GI_MAGIC_JAR_SMALL",
+                0x0044: "GI_MAGIC_JAR_LARGE",
+                0x0045: "GI_WALLET_ADULT",
+                0x0046: "GI_WALLET_GIANT",
+                0x0047: "GI_WEIRD_EGG",
+                0x0048: "GI_RECOVERY_HEART",
+                0x0049: "GI_ARROWS_5",
+                0x004A: "GI_ARROWS_10",
+                0x004B: "GI_ARROWS_30",
+                0x004C: "GI_RUPEE_GREEN",
+                0x004D: "GI_RUPEE_BLUE",
+                0x004E: "GI_RUPEE_RED",
+                0x004F: "GI_HEART_CONTAINER_2",
+                0x0050: "GI_MILK",
+                0x0051: "GI_MASK_GORON",
+                0x0052: "GI_MASK_ZORA",
+                0x0053: "GI_MASK_GERUDO",
+                0x0054: "GI_GORONS_BRACELET",
+                0x0055: "GI_RUPEE_PURPLE",
+                0x0056: "GI_RUPEE_GOLD",
+                0x0057: "GI_SWORD_BIGGORON",
+                0x0058: "GI_ARROW_FIRE",
+                0x0059: "GI_ARROW_ICE",
+                0x005A: "GI_ARROW_LIGHT",
+                0x005B: "GI_SKULL_TOKEN",
+                0x005C: "GI_DINS_FIRE",
+                0x005D: "GI_FARORES_WIND",
+                0x005E: "GI_NAYRUS_LOVE",
+                0x005F: "GI_BULLET_BAG_30",
+                0x0060: "GI_BULLET_BAG_40",
+                0x0061: "GI_DEKU_STICKS_5",
+                0x0062: "GI_DEKU_STICKS_10",
+                0x0063: "GI_DEKU_NUTS_5_2",
+                0x0064: "GI_DEKU_NUTS_10",
+                0x0065: "GI_BOMBS_1",
+                0x0066: "GI_BOMBS_10",
+                0x0067: "GI_BOMBS_20",
+                0x0068: "GI_BOMBS_30",
+                0x0069: "GI_DEKU_SEEDS_30",
+                0x006A: "GI_BOMBCHUS_5",
+                0x006B: "GI_BOMBCHUS_20",
+                0x006C: "GI_BOTTLE_FISH",
+                0x006D: "GI_BOTTLE_BUGS",
+                0x006E: "GI_BOTTLE_BLUE_FIRE",
+                0x006F: "GI_BOTTLE_POE",
+                0x0070: "GI_BOTTLE_BIG_POE",
+                0x0071: "GI_DOOR_KEY",
+                0x0072: "GI_RUPEE_GREEN_LOSE",
+                0x0073: "GI_RUPEE_BLUE_LOSE",
+                0x0074: "GI_RUPEE_RED_LOSE",
+                0x0075: "GI_RUPEE_PURPLE_LOSE",
+                0x0076: "GI_HEART_PIECE_WIN",
+                0x0077: "GI_DEKU_STICK_UPGRADE_20",
+                0x0078: "GI_DEKU_STICK_UPGRADE_30",
+                0x0079: "GI_DEKU_NUT_UPGRADE_30",
+                0x007A: "GI_DEKU_NUT_UPGRADE_40",
+                0x007B: "GI_BULLET_BAG_50",
+                0x007C: "GI_ICE_TRAP",
+                0x007D: "GI_TEXT_0",
+                0x007E: "GI_VANILLA_MAX",
+                0x007F: "GI_CAPPED_PIECE_OF_HEART_CHESTGAME",
+                0x0080: "GI_PROGRESSIVE_HOOKSHOT",
+                0x0081: "GI_PROGRESSIVE_STRENGTH",
+                0x0082: "GI_PROGRESSIVE_BOMB_BAG",
+                0x0083: "GI_PROGRESSIVE_BOW",
+                0x0084: "GI_PROGRESSIVE_SLINGSHOT",
+                0x0085: "GI_PROGRESSIVE_WALLET",
+                0x0086: "GI_PROGRESSIVE_SCALE",
+                0x0087: "GI_PROGRESSIVE_NUT_CAPACITY",
+                0x0088: "GI_PROGRESSIVE_STICK_CAPACITY",
+                0x0089: "GI_PROGRESSIVE_BOMBCHUS",
+                0x008A: "GI_PROGRESSIVE_MAGIC_METER",
+                0x008B: "GI_PROGRESSIVE_OCARINA",
+                0x008C: "GI_BOTTLE_WITH_RED_POTION",
+                0x008D: "GI_BOTTLE_WITH_GREEN_POTION",
+                0x008E: "GI_BOTTLE_WITH_BLUE_POTION",
+                0x008F: "GI_BOTTLE_WITH_FAIRY",
+                0x0090: "GI_BOTTLE_WITH_FISH",
+                0x0091: "GI_BOTTLE_WITH_BLUE_FIRE",
+                0x0092: "GI_BOTTLE_WITH_BUGS",
+                0x0093: "GI_BOTTLE_WITH_BIG_POE",
+                0x0094: "GI_BOTTLE_WITH_POE",
+                0x0095: "GI_BOSS_KEY_FOREST_TEMPLE",
+                0x0096: "GI_BOSS_KEY_FIRE_TEMPLE",
+                0x0097: "GI_BOSS_KEY_WATER_TEMPLE",
+                0x0098: "GI_BOSS_KEY_SPIRIT_TEMPLE",
+                0x0099: "GI_BOSS_KEY_SHADOW_TEMPLE",
+                0x009A: "GI_BOSS_KEY_GANONS_CASTLE",
+                0x009B: "GI_COMPASS_DEKU_TREE",
+                0x009C: "GI_COMPASS_DODONGOS_CAVERN",
+                0x009D: "GI_COMPASS_JABU_JABU",
+                0x009E: "GI_COMPASS_FOREST_TEMPLE",
+                0x009F: "GI_COMPASS_FIRE_TEMPLE",
+                0x00A0: "GI_COMPASS_WATER_TEMPLE",
+                0x00A1: "GI_COMPASS_SPIRIT_TEMPLE",
+                0x00A2: "GI_COMPASS_SHADOW_TEMPLE",
+                0x00A3: "GI_COMPASS_BOTTOM_OF_THE_WELL",
+                0x00A4: "GI_COMPASS_ICE_CAVERN",
+                0x00A5: "GI_MAP_DEKU_TREE",
+                0x00A6: "GI_MAP_DODONGOS_CAVERN",
+                0x00A7: "GI_MAP_JABU_JABU",
+                0x00A8: "GI_MAP_FOREST_TEMPLE",
+                0x00A9: "GI_MAP_FIRE_TEMPLE",
+                0x00AA: "GI_MAP_WATER_TEMPLE",
+                0x00AB: "GI_MAP_SPIRIT_TEMPLE",
+                0x00AC: "GI_MAP_SHADOW_TEMPLE",
+                0x00AD: "GI_MAP_BOTTOM_OF_THE_WELL",
+                0x00AE: "GI_MAP_ICE_CAVERN",
+                0x00AF: "GI_SMALL_KEY_FOREST_TEMPLE",
+                0x00B0: "GI_SMALL_KEY_FIRE_TEMPLE",
+                0x00B1: "GI_SMALL_KEY_WATER_TEMPLE",
+                0x00B2: "GI_SMALL_KEY_SPIRIT_TEMPLE",
+                0x00B3: "GI_SMALL_KEY_SHADOW_TEMPLE",
+                0x00B4: "GI_SMALL_KEY_BOTTOM_OF_THE_WELL",
+                0x00B5: "GI_SMALL_KEY_GERUDO_TRAINING",
+                0x00B6: "GI_SMALL_KEY_THIEVES_HIDEOUT",
+                0x00B7: "GI_SMALL_KEY_GANONS_CASTLE",
+                0x00B8: "GI_DOUBLE_DEFENSE",
+                0x00B9: "GI_MAGIC_METER",
+                0x00BA: "GI_DOUBLE_MAGIC",
+                0x00BB: "GI_MINUET_OF_FOREST",
+                0x00BC: "GI_BOLERO_OF_FIRE",
+                0x00BD: "GI_SERENADE_OF_WATER",
+                0x00BE: "GI_REQUIEM_OF_SPIRIT",
+                0x00BF: "GI_NOCTURNE_OF_SHADOW",
+                0x00C0: "GI_PRELUDE_OF_LIGHT",
+                0x00C1: "GI_ZELDAS_LULLABY",
+                0x00C2: "GI_EPONAS_SONG",
+                0x00C3: "GI_SARIAS_SONG",
+                0x00C4: "GI_SUNS_SONG",
+                0x00C5: "GI_SONG_OF_TIME",
+                0x00C6: "GI_SONG_OF_STORMS",
+                0x00C7: "GI_TYCOONS_WALLET",
+                0x00C8: "GI_REDUNDANT_LETTER_BOTTLE",
+                0x00C9: "GI_MAGIC_BEAN_PACK",
+                0x00CA: "GI_TRIFORCE_PIECE",
+                0x00CB: "GI_SMALL_KEY_RING_FOREST_TEMPLE",
+                0x00CC: "GI_SMALL_KEY_RING_FIRE_TEMPLE",
+                0x00CD: "GI_SMALL_KEY_RING_WATER_TEMPLE",
+                0x00CE: "GI_SMALL_KEY_RING_SPIRIT_TEMPLE",
+                0x00CF: "GI_SMALL_KEY_RING_SHADOW_TEMPLE",
+                0x00D0: "GI_SMALL_KEY_RING_BOTTOM_OF_THE_WELL",
+                0x00D1: "GI_SMALL_KEY_RING_GERUDO_TRAINING",
+                0x00D2: "GI_SMALL_KEY_RING_THIEVES_HIDEOUT",
+                0x00D3: "GI_SMALL_KEY_RING_GANONS_CASTLE",
+                0x00D4: "GI_BOMBCHU_BAG_20",
+                0x00D5: "GI_BOMBCHU_BAG_10",
+                0x00D6: "GI_BOMBCHU_BAG_5",
+                0x00D7: "GI_SMALL_KEY_RING_TREASURE_CHEST_GAME",
+                0x00D8: "GI_SILVER_RUPEE_DODONGOS_CAVERN_STAIRCASE",
+                0x00D9: "GI_SILVER_RUPEE_ICE_CAVERN_SPINNING_SCYTHE",
+                0x00DA: "GI_SILVER_RUPEE_ICE_CAVERN_PUSH_BLOCK",
+                0x00DB: "GI_SILVER_RUPEE_BOTTOM_OF_THE_WELL_BASEMENT",
+                0x00DC: "GI_SILVER_RUPEE_SHADOW_TEMPLE_SCYTHE_SHORTCUT",
+                0x00DD: "GI_SILVER_RUPEE_SHADOW_TEMPLE_INVISIBLE_BLADES",
+                0x00DE: "GI_SILVER_RUPEE_SHADOW_TEMPLE_HUGE_PIT",
+                0x00DF: "GI_SILVER_RUPEE_SHADOW_TEMPLE_INVISIBLE_SPIKES",
+                0x00E0: "GI_SILVER_RUPEE_GERUDO_TRAINING_GROUND_SLOPES",
+                0x00E1: "GI_SILVER_RUPEE_GERUDO_TRAINING_GROUND_LAVA",
+                0x00E2: "GI_SILVER_RUPEE_GERUDO_TRAINING_GROUND_WATER",
+                0x00E3: "GI_SILVER_RUPEE_SPIRIT_TEMPLE_CHILD_EARLY_TORCHES",
+                0x00E4: "GI_SILVER_RUPEE_SPIRIT_TEMPLE_ADULT_BOULDERS",
+                0x00E5: "GI_SILVER_RUPEE_SPIRIT_TEMPLE_LOBBY_AND_LOWER_ADULT",
+                0x00E6: "GI_SILVER_RUPEE_SPIRIT_TEMPLE_SUN_BLOCK",
+                0x00E7: "GI_SILVER_RUPEE_SPIRIT_TEMPLE_ADULT_CLIMB",
+                0x00E8: "GI_SILVER_RUPEE_GANONS_CASTLE_SPIRIT_TRIAL",
+                0x00E9: "GI_SILVER_RUPEE_GANONS_CASTLE_LIGHT_TRIAL",
+                0x00EA: "GI_SILVER_RUPEE_GANONS_CASTLE_FIRE_TRIAL",
+                0x00EB: "GI_SILVER_RUPEE_GANONS_CASTLE_SHADOW_TRIAL",
+                0x00EC: "GI_SILVER_RUPEE_GANONS_CASTLE_WATER_TRIAL",
+                0x00ED: "GI_SILVER_RUPEE_GANONS_CASTLE_FOREST_TRIAL",
+                0x00EE: "GI_SILVER_RUPEE_POUCH_DODONGOS_CAVERN_STAIRCASE",
+                0x00EF: "GI_SILVER_RUPEE_POUCH_ICE_CAVERN_SPINNING_SCYTHE",
+                0x00F0: "GI_SILVER_RUPEE_POUCH_ICE_CAVERN_PUSH_BLOCK",
+                0x00F1: "GI_SILVER_RUPEE_POUCH_BOTTOM_OF_THE_WELL_BASEMENT",
+                0x00F2: "GI_SILVER_RUPEE_POUCH_SHADOW_TEMPLE_SCYTHE_SHORTCUT",
+                0x00F3: "GI_SILVER_RUPEE_POUCH_SHADOW_TEMPLE_INVISIBLE_BLADES",
+                0x00F4: "GI_SILVER_RUPEE_POUCH_SHADOW_TEMPLE_HUGE_PIT",
+                0x00F5: "GI_SILVER_RUPEE_POUCH_SHADOW_TEMPLE_INVISIBLE_SPIKES",
+                0x00F6: "GI_SILVER_RUPEE_POUCH_GERUDO_TRAINING_GROUND_SLOPES",
+                0x00F7: "GI_SILVER_RUPEE_POUCH_GERUDO_TRAINING_GROUND_LAVA",
+                0x00F8: "GI_SILVER_RUPEE_POUCH_GERUDO_TRAINING_GROUND_WATER",
+                0x00F9: "GI_SILVER_RUPEE_POUCH_SPIRIT_TEMPLE_CHILD_EARLY_TORCHES",
+                0x00FA: "GI_SILVER_RUPEE_POUCH_SPIRIT_TEMPLE_ADULT_BOULDERS",
+                0x00FB: "GI_SILVER_RUPEE_POUCH_SPIRIT_TEMPLE_LOBBY_AND_LOWER_ADULT",
+                0x00FC: "GI_SILVER_RUPEE_POUCH_SPIRIT_TEMPLE_SUN_BLOCK",
+                0x00FD: "GI_SILVER_RUPEE_POUCH_SPIRIT_TEMPLE_ADULT_CLIMB",
+                0x00FE: "GI_SILVER_RUPEE_POUCH_GANONS_CASTLE_SPIRIT_TRIAL",
+                0x00FF: "GI_SILVER_RUPEE_POUCH_GANONS_CASTLE_LIGHT_TRIAL",
+                0x0100: "GI_SILVER_RUPEE_POUCH_GANONS_CASTLE_FIRE_TRIAL",
+                0x0101: "GI_SILVER_RUPEE_POUCH_GANONS_CASTLE_SHADOW_TRIAL",
+                0x0102: "GI_SILVER_RUPEE_POUCH_GANONS_CASTLE_WATER_TRIAL",
+                0x0103: "GI_SILVER_RUPEE_POUCH_GANONS_CASTLE_FOREST_TRIAL",
+                // Ocarina button models
+                0x0104: "GI_OCARINA_BUTTON_A",
+                0x0105: "GI_OCARINA_BUTTON_C_UP",
+                0x0106: "GI_OCARINA_BUTTON_C_DOWN",
+                0x0107: "GI_OCARINA_BUTTON_C_LEFT",
+                0x0108: "GI_OCARINA_BUTTON_C_RIGHT",
+                // Custom Key Models
+                0x0109: "GI_BOSS_KEY_MODEL_FOREST_TEMPLE",
+                0x010A: "GI_BOSS_KEY_MODEL_FIRE_TEMPLE",
+                0x010B: "GI_BOSS_KEY_MODEL_WATER_TEMPLE",
+                0x010C: "GI_BOSS_KEY_MODEL_SPIRIT_TEMPLE",
+                0x010D: "GI_BOSS_KEY_MODEL_SHADOW_TEMPLE",
+                0x010E: "GI_BOSS_KEY_MODEL_GANONS_CASTLE",
+                0x010F: "GI_SMALL_KEY_MODEL_FOREST_TEMPLE",
+                0x0110: "GI_SMALL_KEY_MODEL_FIRE_TEMPLE",
+                0x0111: "GI_SMALL_KEY_MODEL_WATER_TEMPLE",
+                0x0112: "GI_SMALL_KEY_MODEL_SPIRIT_TEMPLE",
+                0x0113: "GI_SMALL_KEY_MODEL_SHADOW_TEMPLE",
+                0x0114: "GI_SMALL_KEY_MODEL_BOTTOM_OF_THE_WELL",
+                0x0115: "GI_SMALL_KEY_MODEL_GERUDO_TRAINING",
+                0x0116: "GI_SMALL_KEY_MODEL_THIEVES_HIDEOUT",
+                0x0117: "GI_SMALL_KEY_MODEL_GANONS_CASTLE",
+                0x0118: "GI_SMALL_KEY_MODEL_CHEST_GAME",
+                0x0119: "GI_FAIRY",
+                0x011A: "GI_NOTHING",
+                0x0127: "GI_KOKIRI_EMERALD",
+                0x0128: "GI_GORON_RUBY",
+                0x0129: "GI_ZORA_SAPPHIRE",
+                0x012A: "GI_LIGHT_MEDALLION",
+                0x012B: "GI_FOREST_MEDALLION",
+                0x012C: "GI_FIRE_MEDALLION",
+                0x012D: "GI_WATER_MEDALLION",
+                0x012E: "GI_SHADOW_MEDALLION",
+                0x012F: "GI_SPIRIT_MEDALLION",
+                0x0130: "GI_RANDO_MAX",
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package randomizer
+
+var ootCharset = map[rune]byte{
+        '0': 0x00, '1': 0x01, '2': 0x02, '3': 0x03, '4': 0x04,
+        '5': 0x05, '6': 0x06, '7': 0x07, '8': 0x08, '9': 0x09,
+        'A': 0xAB, 'B': 0xAC, 'C': 0xAD, 'D': 0xAE, 'E': 0xAF,
+        'F': 0xB0, 'G': 0xB1, 'H': 0xB2, 'I': 0xB3, 'J': 0xB4,
+        'K': 0xB5, 'L': 0xB6, 'M': 0xB7, 'N': 0xB8, 'O': 0xB9,
+        'P': 0xBA, 'Q': 0xBB, 'R': 0xBC, 'S': 0xBD, 'T': 0xBE,
+        'U': 0xBF, 'V': 0xC0, 'W': 0xC1, 'X': 0xC2, 'Y': 0xC3, 'Z': 0xC4,
+        'a': 0xC5, 'b': 0xC6, 'c': 0xC7, 'd': 0xC8, 'e': 0xC9,
+        'f': 0xCA, 'g': 0xCB, 'h': 0xCC, 'i': 0xCD, 'j': 0xCE,
+        'k': 0xCF, 'l': 0xD0, 'm': 0xD1, 'n': 0xD2, 'o': 0xD3,
+        'p': 0xD4, 'q': 0xD5, 'r': 0xD6, 's': 0xD7, 't': 0xD8,
+        'u': 0xD9, 'v': 0xDA, 'w': 0xDB, 'x': 0xDC, 'y': 0xDD, 'z': 0xDE,
+        ' ': 0xDF, '-': 0xE4, '.': 0xE8,
+}
+
+// EncodeOoTName translates a Go string into a padded 8-byte OoT array
+func EncodeOoTName(name string) [8]byte <span class="cov0" title="0">{
+        var out [8]byte
+
+        // Pre-fill the array with the OoT "Space" character (0xDF)
+        // This prevents names from ending in "000"
+        for i := range out </span><span class="cov0" title="0">{
+                out[i] = 0xDF
+        }</span>
+
+        // Translate up to 8 characters
+        <span class="cov0" title="0">for i, char := range name </span><span class="cov0" title="0">{
+                if i &gt;= 8 </span><span class="cov0" title="0">{
+                        break</span> // OoT names have a hard limit of 8 characters
+                }
+                <span class="cov0" title="0">if ootByte, ok := ootCharset[char]; ok </span><span class="cov0" title="0">{
+                        out[i] = ootByte
+                }</span> else<span class="cov0" title="0"> {
+                        out[i] = 0xDF // Fallback to a space if we have an unsupported character
+                }</span>
+        }
+        <span class="cov0" title="0">return out</span>
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package server
+
+import (
+        "embed"
+        "encoding/json"
+        "io/fs"
+        "log"
+        "net/http"
+
+        "github.com/gorilla/websocket"
+)
+
+var upgrader = websocket.Upgrader{
+        CheckOrigin: func(r *http.Request) bool <span class="cov0" title="0">{
+                return true // Allow connections from our local Svelte app
+        }</span>,
+}
+
+type ClientConfig struct {
+        PlayerName  string `json:"playerName"`
+        WorldNumber uint8  `json:"worldNumber"`
+        MQTTUrl     string `json:"mqttUrl"`
+        RoomName    string `json:"roomName"`
+}
+
+type UIServer struct {
+}
+
+func (s *UIServer) Serve(assets embed.FS) (&lt;-chan ClientConfig, error) <span class="cov0" title="0">{
+        // We have to strip the "ui/dist" prefix so the web server
+        // serves the index.html at the root "/" path.
+        distFolder, err := fs.Sub(assets, "ui/dist")
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">configChan := make(chan ClientConfig)
+
+        // Serve the static files
+        http.Handle("/", http.FileServer(http.FS(distFolder)))
+        http.HandleFunc("/ws", HandleWebSocket(configChan))
+
+        log.Println("==================================================")
+        log.Println("🌐 UI running at: http://localhost:8080")
+        log.Println("==================================================")
+
+        // Start the server in a background goroutine
+        go func() </span><span class="cov0" title="0">{
+                if err := http.ListenAndServe(":8080", nil); err != nil </span><span class="cov0" title="0">{
+                        log.Printf("UI Server failed: %v", err)
+                }</span>
+        }()
+        <span class="cov0" title="0">return configChan, nil</span>
+}
+
+// HandleWebSocket intercepts the /ws route
+// We pass a channel in so the HTTP server can talk to main()
+func HandleWebSocket(configChan chan&lt;- ClientConfig) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                conn, err := upgrader.Upgrade(w, r, nil)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Failed to upgrade websocket: %v", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">defer conn.Close()
+
+                for </span><span class="cov0" title="0">{
+                        messageType, payload, err := conn.ReadMessage()
+                        if err != nil </span><span class="cov0" title="0">{
+                                break</span>
+                        }
+
+                        <span class="cov0" title="0">if messageType == websocket.TextMessage </span><span class="cov0" title="0">{
+                                var config ClientConfig
+                                if err := json.Unmarshal(payload, &amp;config); err == nil </span><span class="cov0" title="0">{
+                                        // PUSH THE CONFIG TO MAIN!
+                                        configChan &lt;- config
+                                }</span>
+                        }
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package main
+
+import (
+        "context"
+        "embed"
+        "log"
+        "os"
+        "os/signal"
+        "syscall"
+
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/emulator/retroarch"
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/engine"
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/mqtt"
+        "github.com/Print-and-Panic/Hyrule-Hub/internal/server"
+)
+
+var (
+        stateFilePath = "state.json"
+)
+
+//go:embed ui/dist
+var frontendAssets embed.FS
+
+func main() <span class="cov0" title="0">{
+        uiServer := &amp;server.UIServer{}
+        configChan, err := uiServer.Serve(frontendAssets)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("failed to serve UI: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">config := &lt;-configChan
+
+        retroArch := new(retroarch.RetroArch)
+        if err := retroArch.Connect(); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Emulator error: %v", err)
+        }</span>
+        <span class="cov0" title="0">defer retroArch.Disconnect()
+
+        mqttClient := mqtt.NewMQTTClient(config.MQTTUrl, config.RoomName, config.WorldNumber)
+        if err := mqttClient.Connect(); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("MQTT error: %v", err)
+        }</span>
+        <span class="cov0" title="0">defer mqttClient.Disconnect()
+
+        // Broadcast name
+        mqttClient.BroadcastName(config.WorldNumber, config.PlayerName)
+
+        app := engine.NewEngine(retroArch, mqttClient, uiServer, "state.json")
+
+        ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+        defer cancel()
+
+        log.Println("Hyrule-Hub successfully started. Waiting for items...")
+
+        if err := app.Start(ctx); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Tracker crashed: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">log.Println("Graceful shutdown complete.")</span>
+
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
