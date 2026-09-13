@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/Print-and-Panic/Hyrule-Hub/internal/emulator/retroarch"
-	"github.com/Print-and-Panic/Hyrule-Hub/internal/engine"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/Print-and-Panic/Hyrule-Hub/internal/bridge/retroarch"
+	"github.com/Print-and-Panic/Hyrule-Hub/internal/hub"
 	"github.com/Print-and-Panic/Hyrule-Hub/internal/mqtt"
 	"github.com/Print-and-Panic/Hyrule-Hub/internal/server"
 )
@@ -27,8 +30,6 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("failed to serve UI: %w", err)
 	}
-	// Rewrite to use custom server for clean shutdowns
-	// defer uiServer.Shutdown()
 
 	var config server.ClientConfig
 	select {
@@ -39,37 +40,42 @@ func run() error {
 		log.Println("Configuration received, booting engine...")
 	}
 
-	retroArch := new(retroarch.RetroArch)
-	if err := retroArch.Connect(ctx); err != nil {
+	accessor := retroarch.NewAccessor(os.Getenv("RETROARCH_ADDR"))
+	if err := accessor.Connect(ctx); err != nil {
 		return fmt.Errorf("emulator connection failed: %w", err)
 	}
-	defer retroArch.Disconnect()
+	defer accessor.Close()
 
-	mqttClient := mqtt.NewMQTTClient(config.MQTTUrl, config.RoomName, config.WorldNumber)
-	if err := mqttClient.Connect(ctx); err != nil {
+	clientID := fmt.Sprintf("pnp-client-%s-%d", config.RoomName, config.WorldNumber)
+	broker := mqtt.NewClient(config.MQTTUrl, clientID)
+	if err := broker.Connect(ctx); err != nil {
 		return fmt.Errorf("MQTT connection failed: %w", err)
 	}
-	defer mqttClient.Disconnect()
+	defer broker.Disconnect(context.Background())
 
-	mqttClient.BroadcastName(ctx, config.WorldNumber, config.PlayerName)
+	h := hub.New(hub.Config{
+		PlayerName:  config.PlayerName,
+		WorldNumber: config.WorldNumber,
+		RoomName:    config.RoomName,
+	}, broker)
 
-	app := engine.NewEngine(retroArch, mqttClient, uiServer, "state.json")
+	bridge := retroarch.NewBridge(accessor, h.Events(), h.Grants(), h.Names())
 
 	log.Println("Hyrule-Hub successfully started. Waiting for items...")
 
-	if err := app.Start(ctx); err != nil {
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return bridge.Start(gctx) })
+	g.Go(func() error { return h.Run(gctx) })
+
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("tracker crashed: %w", err)
 	}
-
 	return nil
-
 }
 
 func main() {
-
 	if err := run(); err != nil {
 		log.Fatalf("Fatal: %v", err)
 	}
 	log.Println("Graceful shutdown complete.")
-
 }

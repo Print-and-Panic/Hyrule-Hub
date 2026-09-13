@@ -1,126 +1,138 @@
+// Package mqtt implements core.NetworkBroker over MQTT using the Eclipse
+// Paho client. It knows nothing about Ocarina of Time: topics, payloads,
+// and QoS are supplied by the caller.
 package mqtt
 
 import (
-	"encoding/json"
+	"bytes"
+	"context"
 	"fmt"
 	"log"
+	"sync"
+	"time"
 
-	"github.com/Print-and-Panic/Hyrule-Hub/internal/randomizer"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/Print-and-Panic/Hyrule-Hub/internal/core"
+	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
-type pahoClient struct {
-	client   mqtt.Client
-	roomHash string
-	playerID uint8
+// subChanBuffer bounds each subscription channel. A slow consumer drops
+// messages rather than stalling the Paho read loop, per the NetworkBroker
+// contract.
+const subChanBuffer = 256
 
-	itemChan chan randomizer.IncomingItem
-	nameChan chan randomizer.PlayerName
+// Client implements core.NetworkBroker.
+type Client struct {
+	client paho.Client
+
+	mu   sync.Mutex
+	subs []*subscription
 }
 
-// NewMQTTClient initializes the structs and channels but does not connect yet
-func NewMQTTClient(brokerURI, roomHash string, playerID uint8) *pahoClient {
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker(brokerURI)
-	// Unique Client ID is critical for Persistent Sessions
-	opts.SetClientID(fmt.Sprintf("pnp-client-%s-%d", roomHash, playerID))
+// NewClient builds a client for brokerURL. clientID must be unique per
+// player per room so the broker can hold a persistent session (missed QoS
+// messages are redelivered on reconnect).
+func NewClient(brokerURL, clientID string) *Client {
+	opts := paho.NewClientOptions()
+	opts.AddBroker(brokerURL)
+	opts.SetClientID(clientID)
 	opts.SetCleanSession(false) // Remember our missed items if we disconnect!
+	opts.SetAutoReconnect(true)
+	opts.SetResumeSubs(true)
+	opts.SetConnectTimeout(10 * time.Second)
 
-	return &pahoClient{
-		roomHash: roomHash,
-		playerID: playerID,
-		itemChan: make(chan randomizer.IncomingItem, 100), // Buffer handles sudden item bursts
-		nameChan: make(chan randomizer.PlayerName, 32),
-		client:   mqtt.NewClient(opts),
-	}
+	return &Client{client: paho.NewClient(opts)}
 }
 
-func (m *pahoClient) Connect() error {
-	if token := m.client.Connect(); token.Wait() && token.Error() != nil {
-		return fmt.Errorf("MQTT connection failed: %w", token.Error())
+// Connect implements core.NetworkBroker.
+func (c *Client) Connect(ctx context.Context) error {
+	token := c.client.Connect()
+	if err := waitToken(ctx, token); err != nil {
+		return fmt.Errorf("MQTT connection failed: %w", err)
+	}
+	return nil
+}
+
+// Publish implements core.NetworkBroker.
+func (c *Client) Publish(ctx context.Context, msg core.Message) error {
+	token := c.client.Publish(msg.Topic, byte(msg.QoS), msg.Retain, msg.Payload)
+	if err := waitToken(ctx, token); err != nil {
+		return fmt.Errorf("failed to publish to %q: %w", msg.Topic, err)
+	}
+	return nil
+}
+
+// Subscribe implements core.NetworkBroker. The returned channel is owned by
+// the client and closed by Disconnect.
+func (c *Client) Subscribe(ctx context.Context, topic string, qos core.QoS) (<-chan core.Message, error) {
+	sub := &subscription{ch: make(chan core.Message, subChanBuffer)}
+
+	token := c.client.Subscribe(topic, byte(qos), func(_ paho.Client, m paho.Message) {
+		sub.deliver(core.Message{Topic: m.Topic(), Payload: bytes.Clone(m.Payload())})
+	})
+	if err := waitToken(ctx, token); err != nil {
+		return nil, fmt.Errorf("failed to subscribe to %q: %w", topic, err)
 	}
 
-	// Subscribe to OUR items ONLY
-	itemTopic := fmt.Sprintf("pnp/rooms/%s/players/%d/items", m.roomHash, m.playerID)
-	if token := m.client.Subscribe(itemTopic, 1, m.onIncomingItem); token.Wait() && token.Error() != nil {
-		return fmt.Errorf("failed to subscribe to items: %w", token.Error())
-	}
+	c.mu.Lock()
+	c.subs = append(c.subs, sub)
+	c.mu.Unlock()
 
-	// Subscribe to EVERYONE'S names using the '+' wildcard
-	nameTopic := fmt.Sprintf("pnp/rooms/%s/players/+/name", m.roomHash)
-	if token := m.client.Subscribe(nameTopic, 1, m.onIncomingName); token.Wait() && token.Error() != nil {
-		return fmt.Errorf("failed to subscribe to names: %w", token.Error())
+	return sub.ch, nil
+}
+
+// Disconnect implements core.NetworkBroker.
+func (c *Client) Disconnect(_ context.Context) error {
+	c.client.Disconnect(250) // Wait 250ms to finish inflight messages
+
+	c.mu.Lock()
+	for _, s := range c.subs {
+		s.close()
 	}
+	c.subs = nil
+	c.mu.Unlock()
 
 	return nil
 }
 
-func (m *pahoClient) Disconnect() error {
-	m.client.Disconnect(250) // Wait 250ms to finish inflight messages
-	return nil
-}
-
-// --- PUBLISHERS ---
-
-func (m *pahoClient) SendItem(item randomizer.OutgoingItem) error {
-	// Route it to the target player's topic
-	topic := fmt.Sprintf("pnp/rooms/%s/players/%d/items", m.roomHash, item.World)
-
-	payload, err := json.Marshal(item)
-	if err != nil {
-		return fmt.Errorf("failed to marshal item: %w", err)
+// waitToken blocks until a Paho token completes or ctx is cancelled.
+func waitToken(ctx context.Context, token paho.Token) error {
+	select {
+	case <-token.Done():
+		return token.Error()
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	// Publish with QoS 1 (At least once), Retained FALSE
-	token := m.client.Publish(topic, 1, false, payload)
-
-	// token.Wait() blocks until the broker physically ACKs the message.
-	token.Wait()
-	return token.Error()
 }
 
-func (m *pahoClient) BroadcastName(playerID uint8, name string) error {
-	topic := fmt.Sprintf("pnp/rooms/%s/players/%d/name", m.roomHash, playerID)
-
-	update := randomizer.PlayerName{PlayerID: playerID, Name: name}
-	payload, err := json.Marshal(update)
-	if err != nil {
-		return err
-	}
-
-	// Publish with QoS 1, Retained TRUE.
-	token := m.client.Publish(topic, 1, true, payload)
-	token.Wait()
-	return token.Error()
+// subscription wraps a receive channel so Disconnect can close it safely
+// even if a Paho callback is mid-delivery.
+type subscription struct {
+	mu     sync.Mutex
+	ch     chan core.Message
+	closed bool
 }
 
-// --- CALLBACKS ---
+// deliver performs a non-blocking send. It runs on a Paho callback
+// goroutine, so it must never block.
+func (s *subscription) deliver(msg core.Message) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-func (m *pahoClient) onIncomingItem(client mqtt.Client, msg mqtt.Message) {
-	var item randomizer.IncomingItem
-	if err := json.Unmarshal(msg.Payload(), &item); err != nil {
-		log.Printf("Network error: failed to parse incoming item payload: %v", err)
+	if s.closed {
 		return
 	}
-	// Push into the buffered channel so the main thread can consume it
-	m.itemChan <- item
-}
-
-func (m *pahoClient) onIncomingName(client mqtt.Client, msg mqtt.Message) {
-	var update randomizer.PlayerName
-	if err := json.Unmarshal(msg.Payload(), &update); err != nil {
-		log.Printf("Network error: failed to parse name update: %v", err)
-		return
+	select {
+	case s.ch <- msg:
+	default:
+		log.Printf("mqtt: subscription buffer full, dropping message on %q", msg.Topic)
 	}
-	m.nameChan <- update
 }
 
-// --- CHANNEL GETTERS ---
-
-func (m *pahoClient) IncomingItems() <-chan randomizer.IncomingItem {
-	return m.itemChan
-}
-
-func (m *pahoClient) IncomingNames() <-chan randomizer.PlayerName {
-	return m.nameChan
+func (s *subscription) close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.closed = true
+		close(s.ch)
+	}
 }

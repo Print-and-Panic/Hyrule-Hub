@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/websocket"
 )
@@ -34,19 +35,24 @@ func (s *UIServer) Serve(assets embed.FS) (<-chan ClientConfig, error) {
 		return nil, err
 	}
 
-	configChan := make(chan ClientConfig)
+	configChan := make(chan ClientConfig, 1)
 
 	// Serve the static files
 	http.Handle("/", http.FileServer(http.FS(distFolder)))
 	http.HandleFunc("/ws", HandleWebSocket(configChan))
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	log.Println("==================================================")
-	log.Println("🌐 UI running at: http://localhost:8080")
+	log.Printf("🌐 UI running at: http://localhost:%s\n", port)
 	log.Println("==================================================")
 
 	// Start the server in a background goroutine
 	go func() {
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
 			log.Printf("UI Server failed: %v", err)
 		}
 	}()
@@ -73,8 +79,12 @@ func HandleWebSocket(configChan chan<- ClientConfig) http.HandlerFunc {
 			if messageType == websocket.TextMessage {
 				var config ClientConfig
 				if err := json.Unmarshal(payload, &config); err == nil {
-					// PUSH THE CONFIG TO MAIN!
-					configChan <- config
+					// First config wins; drop extras rather than blocking
+					// this read loop once main() has consumed it.
+					select {
+					case configChan <- config:
+					default:
+					}
 				}
 			}
 		}
