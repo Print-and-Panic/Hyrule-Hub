@@ -12,5 +12,8 @@ ui/.npm/
 # OS and IDE junk
 .DS_Store
 .vscode/
-.idea/coverage.html
+.idea/
+
+# Coverage artifacts
 coverage.out
+coverage.html
