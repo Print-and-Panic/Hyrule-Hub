@@ -23,18 +23,20 @@ jobs:
     - name: Build Svelte Frontend
       run: |
         cd ui
-        npm install
+        npm ci
         npm run build
 
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.26'
+        go-version: 'stable'
 
     - name: Download Go Modules
       run: go mod download
 
     - name: Compile Executables
+      env:
+        CGO_ENABLED: 0
       run: |
         mkdir -p bin
         GOOS=linux GOARCH=amd64 go build -o bin/hyrule-hub-linux-amd64 .

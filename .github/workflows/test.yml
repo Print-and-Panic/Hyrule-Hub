@@ -10,19 +10,31 @@ jobs:
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # ui/dist is embedded by main.go, so the frontend must be built
+      # before any go command can compile the module.
+      - name: Build Svelte Frontend
+        run: |
+          cd ui
+          npm ci
+          npm run build
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
-          
+          go-version: 'stable'
+
       - name: Install Dependencies
         run: go mod download
 
       - name: Run Tests
-
         run: go test -v ./...
